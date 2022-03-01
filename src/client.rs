@@ -1,4 +1,4 @@
-use pb::chain_broker_client::ChainBrokerClient;
+use pb::{chain_broker_client::ChainBrokerClient, Response};
 use tokio::runtime::{Builder, Runtime};
 
 pub mod pb {
@@ -21,32 +21,29 @@ impl BlockingClient {
     {
         let rt = Builder::new_multi_thread().enable_all().build().unwrap();
         let client = rt.block_on(ChainBrokerClient::connect(dst))?;
-
         Ok(Self { client, rt })
     }
 
     pub fn get_block(
         &mut self,
-        typ: i32, value: &str
+        typ: i32,
+        value: &str,
     ) -> Result<tonic::Response<pb::Block>, tonic::Status> {
         let request = tonic::Request::new(pb::GetBlockRequest {
             r#type: typ,
-            value: value.into()
+            value: value.into(),
         });
         self.rt.block_on(self.client.get_block(request))
     }
 
     pub fn get_block_headers(
         &mut self,
-        start: u64, end: u64
+        start: u64,
+        end: u64,
     ) -> Result<tonic::Response<pb::GetBlockHeadersResponse>, tonic::Status> {
-        let request = tonic::Request::new(pb::GetBlockHeadersRequest {
-            start,
-            end
-        });
+        let request = tonic::Request::new(pb::GetBlockHeadersRequest { start, end });
         self.rt.block_on(self.client.get_block_headers(request))
     }
-
 
     pub fn get_chain_meta(
         &mut self,
@@ -59,19 +56,19 @@ impl BlockingClient {
         &mut self,
         tx_hash: &str,
     ) -> Result<tonic::Response<pb::GetTransactionResponse>, tonic::Status> {
-        let request = tonic::Request::new(pb::TransactionHashMsg{
-           tx_hash:tx_hash.into()
+        let request = tonic::Request::new(pb::TransactionHashMsg {
+            tx_hash: tx_hash.into(),
         });
         self.rt.block_on(self.client.get_transaction(request))
-    } 
+    }
 
     pub fn get_receipt(
         &mut self,
         tx_hash: &str,
     ) -> Result<tonic::Response<pb::Receipt>, tonic::Status> {
-        let request = tonic::Request::new(pb::TransactionHashMsg{
-            tx_hash:tx_hash.into()
-         });
+        let request = tonic::Request::new(pb::TransactionHashMsg {
+            tx_hash: tx_hash.into(),
+        });
         self.rt.block_on(self.client.get_receipt(request))
     }
 
@@ -81,8 +78,113 @@ impl BlockingClient {
     ) -> Result<tonic::Response<pb::TransactionHashMsg>, tonic::Status> {
         self.rt.block_on(self.client.send_transaction(request))
     }
-
 }
 
+#[cfg(test)]
+mod test {
+    use crate::{
+        pb::{self, request},
+        BlockingClient,
+    };
+    use chrono::Local;
+    use prost::Message;
 
+    #[test]
+    fn connect_test() {
+        let dst = "http://172.16.30.87:60011";
+        let result = BlockingClient::connect(dst);
+        assert!(result.is_ok())
+    }
 
+    #[test]
+    fn get_block_test() {
+        let dst = "http://172.16.30.87:60011";
+        let mut client = BlockingClient::connect(dst).unwrap();
+        let block = client.get_block(0, "1").unwrap();
+        assert!(block.get_ref().block_header.as_ref().unwrap().number == 1)
+    }
+
+    #[test]
+    fn get_block_header_test() {
+        let dst = "http://172.16.30.87:60011";
+        let mut client = BlockingClient::connect(dst).unwrap();
+        let headers = client.get_block_headers(1, 1).unwrap();
+        assert!(
+            headers
+                .get_ref()
+                .block_headers
+                .get(0)
+                .as_ref()
+                .unwrap()
+                .number
+                == 1
+        )
+    }
+
+    #[test]
+    fn get_chain_meta_test() {
+        let dst = "http://172.16.30.87:60011";
+        let mut client = BlockingClient::connect(dst).unwrap();
+        let req = pb::Request { r#type: 0 };
+        let res = client.get_chain_meta(req).unwrap();
+        assert!(res.get_ref().height > 0)
+    }
+
+    #[test]
+    fn get_transaction_test() {
+        let dst = "http://172.16.30.87:60011";
+        let mut client = BlockingClient::connect(dst).unwrap();
+        let res = client
+            .get_transaction("0x3FeD5F5C62934885c8a70072C44EB59b2425747cf6BDE395385588BddeB9C61b")
+            .unwrap();
+        //TODO:need checkSum
+        assert_eq!(
+            hex::encode(res.get_ref().tx.as_ref().unwrap().transaction_hash.to_vec()),
+            "3fed5f5c62934885c8a70072c44eb59b2425747cf6bde395385588bddeb9c61b"
+        )
+    }
+
+    #[test]
+    fn get_receipt_test() {
+        let dst = "http://172.16.30.87:60011";
+        let mut client = BlockingClient::connect(dst).unwrap();
+        let res = client
+            .get_receipt("0x3FeD5F5C62934885c8a70072C44EB59b2425747cf6BDE395385588BddeB9C61b")
+            .unwrap();
+        assert_eq!(res.get_ref().status, 0)
+    }
+
+    #[test]
+    fn send_transaction_test() {
+        //TODO:Sdk need signature
+        let dst = "http://172.16.30.87:60011";
+        let mut client = BlockingClient::connect(dst).unwrap();
+        let data = pb::TransactionData {
+            r#type: 0,
+            amount: String::from("1000000000"),
+            vm_type: 0,
+            payload: vec![],
+            extra: vec![],
+        };
+        let tx = pb::BxhTransaction {
+            version: vec![],
+            from: "0xc7F999b83Af6DF9e67d0a37Ee7e900bF38b3D013"
+                .as_bytes()
+                .to_vec(),
+            to: "0x79a1215469FaB6f9c63c1816b45183AD3624bE34"
+                .as_bytes()
+                .to_vec(),
+            timestamp: Local::now().timestamp_nanos(),
+            transaction_hash: vec![],
+            payload: data.encode_to_vec(),
+            nonce: 1,
+            amount: String::from(""),
+            typ: 0,
+            signature: vec![],
+            extra: vec![],
+            ibtp: None,
+        };
+        let hash = client.send_transaction(tx).unwrap();
+        assert!(!hash.get_ref().tx_hash.is_empty())
+    }
+}

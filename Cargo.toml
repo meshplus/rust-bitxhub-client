@@ -38,6 +38,10 @@ warp = "0.3"
 listenfd = "0.3"
 # grpc-web example
 bytes = "1"
+# time
+chrono = "0.4"
+# hex
+hex = "0.3"
 
 [build-dependencies]
 tonic-build = {version="0.6.2", features = ["prost", "compression"]}
