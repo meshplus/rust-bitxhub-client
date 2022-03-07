@@ -1,9 +1,7 @@
-use pb::{chain_broker_client::ChainBrokerClient, Response};
 use tokio::runtime::{Builder, Runtime};
+use crate::chain_broker_client::ChainBrokerClient;
+use crate::pb::abi::*;
 
-pub mod pb {
-    tonic::include_proto!("pb");
-}
 
 type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
 type Result<T, E = StdError> = ::std::result::Result<T, E>;
@@ -28,8 +26,8 @@ impl BlockingClient {
         &mut self,
         typ: i32,
         value: &str,
-    ) -> Result<tonic::Response<pb::Block>, tonic::Status> {
-        let request = tonic::Request::new(pb::GetBlockRequest {
+    ) -> Result<tonic::Response<Block>, tonic::Status> {
+        let request = tonic::Request::new(GetBlockRequest {
             r#type: typ,
             value: value.into(),
         });
@@ -40,23 +38,23 @@ impl BlockingClient {
         &mut self,
         start: u64,
         end: u64,
-    ) -> Result<tonic::Response<pb::GetBlockHeadersResponse>, tonic::Status> {
-        let request = tonic::Request::new(pb::GetBlockHeadersRequest { start, end });
+    ) -> Result<tonic::Response<GetBlockHeadersResponse>, tonic::Status> {
+        let request = tonic::Request::new(GetBlockHeadersRequest { start, end });
         self.rt.block_on(self.client.get_block_headers(request))
     }
 
     pub fn get_chain_meta(
         &mut self,
-        request: impl tonic::IntoRequest<pb::Request>,
-    ) -> Result<tonic::Response<pb::ChainMeta>, tonic::Status> {
+        request: impl tonic::IntoRequest<Request>,
+    ) -> Result<tonic::Response<ChainMeta>, tonic::Status> {
         self.rt.block_on(self.client.get_chain_meta(request))
     }
 
     pub fn get_transaction(
         &mut self,
         tx_hash: &str,
-    ) -> Result<tonic::Response<pb::GetTransactionResponse>, tonic::Status> {
-        let request = tonic::Request::new(pb::TransactionHashMsg {
+    ) -> Result<tonic::Response<GetTransactionResponse>, tonic::Status> {
+        let request = tonic::Request::new(TransactionHashMsg {
             tx_hash: tx_hash.into(),
         });
         self.rt.block_on(self.client.get_transaction(request))
@@ -65,8 +63,8 @@ impl BlockingClient {
     pub fn get_receipt(
         &mut self,
         tx_hash: &str,
-    ) -> Result<tonic::Response<pb::Receipt>, tonic::Status> {
-        let request = tonic::Request::new(pb::TransactionHashMsg {
+    ) -> Result<tonic::Response<Receipt>, tonic::Status> {
+        let request = tonic::Request::new(TransactionHashMsg {
             tx_hash: tx_hash.into(),
         });
         self.rt.block_on(self.client.get_receipt(request))
@@ -74,20 +72,29 @@ impl BlockingClient {
 
     pub fn send_transaction(
         &mut self,
-        request: impl tonic::IntoRequest<pb::BxhTransaction>,
-    ) -> Result<tonic::Response<pb::TransactionHashMsg>, tonic::Status> {
+        request: impl tonic::IntoRequest<BxhTransaction>,
+    ) -> Result<tonic::Response<TransactionHashMsg>, tonic::Status> {
         self.rt.block_on(self.client.send_transaction(request))
+    }
+
+    pub fn subscribe(
+        &mut self, 
+        r#type: subscription_request::Type,
+        extra: &[u8],
+    ) -> Result<tonic::Response<tonic::codec::Streaming<Response>>, tonic::Status> {
+        let request = tonic::Request::new(SubscriptionRequest {
+            r#type: r#type.into(),
+            extra: extra.to_vec(),
+        });
+        self.rt.block_on(self.client.subscribe(request))
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        pb::{self, request},
-        BlockingClient,
-    };
     use chrono::Local;
     use prost::Message;
+    use super::*;
 
     #[test]
     fn connect_test() {
@@ -109,23 +116,20 @@ mod test {
         let dst = "http://172.16.30.87:60011";
         let mut client = BlockingClient::connect(dst).unwrap();
         let headers = client.get_block_headers(1, 1).unwrap();
-        assert!(
-            headers
-                .get_ref()
-                .block_headers
-                .get(0)
-                .as_ref()
-                .unwrap()
-                .number
-                == 1
-        )
+        assert_eq!(headers
+                       .get_ref()
+                       .block_headers
+                       .get(0)
+                       .as_ref()
+                       .unwrap()
+                       .number, 1)
     }
 
     #[test]
     fn get_chain_meta_test() {
         let dst = "http://172.16.30.87:60011";
         let mut client = BlockingClient::connect(dst).unwrap();
-        let req = pb::Request { r#type: 0 };
+        let req = Request { r#type: 0 };
         let res = client.get_chain_meta(req).unwrap();
         assert!(res.get_ref().height > 0)
     }
@@ -159,14 +163,14 @@ mod test {
         //TODO:Sdk need signature
         let dst = "http://172.16.30.87:60011";
         let mut client = BlockingClient::connect(dst).unwrap();
-        let data = pb::TransactionData {
+        let data = TransactionData {
             r#type: 0,
             amount: String::from("1000000000"),
             vm_type: 0,
             payload: vec![],
             extra: vec![],
         };
-        let tx = pb::BxhTransaction {
+        let tx = BxhTransaction {
             version: vec![],
             from: "0xc7F999b83Af6DF9e67d0a37Ee7e900bF38b3D013"
                 .as_bytes()

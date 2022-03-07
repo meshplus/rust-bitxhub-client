@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package pb;
+package abi;
 import "transaction.proto";
 
 message Block {
@@ -25,7 +25,7 @@ message BlockHeader {
 
 message HappyBlock {
     BlockHeader block_header = 1;
-    repeated pb.BxhTransaction bxh_txs = 2;
+    repeated abi.BxhTransaction bxh_txs = 2;
     repeated bytes eth_txs = 3;
     bytes block_hash = 4;
     bytes signature = 5;

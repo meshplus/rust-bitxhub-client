@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package pb;
+package abi;
 
 import "google/api/annotations.proto";
 import "transaction.proto";
@@ -16,13 +16,13 @@ service ChainBroker {
     };
   }
 
-  rpc SubscribeAuditInfo (pb.AuditSubscriptionRequest) returns (stream Response) {
+  rpc SubscribeAuditInfo (abi.AuditSubscriptionRequest) returns (stream Response) {
     option (google.api.http) = {
       get: "/v1/audit_subscription"
     };
   }
 
-  rpc GetBlockHeader (GetBlockHeaderRequest) returns (stream pb.BlockHeader) {
+  rpc GetBlockHeader (GetBlockHeaderRequest) returns (stream abi.BlockHeader) {
     option (google.api.http) = {
       get: "/v1/block_header"
     };
@@ -34,14 +34,14 @@ service ChainBroker {
     };
   }
 
-  rpc SendTransaction (pb.BxhTransaction) returns (TransactionHashMsg) {
+  rpc SendTransaction (abi.BxhTransaction) returns (TransactionHashMsg) {
     option (google.api.http) = {
       post: "/v1/transaction"
       body: "*"
     };
   }
 
-  rpc SendView (pb.BxhTransaction) returns (pb.Receipt) {
+  rpc SendView (abi.BxhTransaction) returns (abi.Receipt) {
     option (google.api.http) = {
       post: "/v1/view"
       body: "*"
@@ -54,13 +54,13 @@ service ChainBroker {
     };
   }
 
-  rpc GetReceipt (TransactionHashMsg) returns (pb.Receipt) {
+  rpc GetReceipt (TransactionHashMsg) returns (abi.Receipt) {
     option (google.api.http) = {
       get: "/v1/receipt/{tx_hash}"
     };
   }
 
-  rpc GetBlock (GetBlockRequest) returns (pb.Block) {
+  rpc GetBlock (GetBlockRequest) returns (abi.Block) {
     option (google.api.http) = {
       get: "/v1/block"
     };
@@ -84,7 +84,7 @@ service ChainBroker {
     };
   }
 
-  rpc GetChainMeta (Request) returns (pb.ChainMeta) {
+  rpc GetChainMeta (Request) returns (abi.ChainMeta) {
     option (google.api.http) = {
       get: "/v1/chain_meta"
     };
@@ -201,11 +201,11 @@ message GetBlocksRequest {
 }
 
 message GetBlocksResponse {
-  repeated pb.Block blocks = 1;
+  repeated abi.Block blocks = 1;
 }
 
 message GetHappyBlocksResponse {
-  repeated pb.HappyBlock blocks = 1;
+  repeated abi.HappyBlock blocks = 1;
 }
 
 message GetBlockHeadersRequest {
@@ -214,7 +214,7 @@ message GetBlockHeadersRequest {
 }
 
 message GetBlockHeadersResponse {
-  repeated pb.BlockHeader blockHeaders = 1;
+  repeated abi.BlockHeader blockHeaders = 1;
 }
 
 message SubscriptionRequest {
@@ -243,12 +243,12 @@ message GetMultiSignsRequest {
 }
 
 message GetTransactionResponse {
-  pb.BxhTransaction tx = 1;
-  pb.TransactionMeta tx_meta = 2;
+  abi.BxhTransaction tx = 1;
+  abi.TransactionMeta tx_meta = 2;
 }
 
 message VerifiedTx {
-  pb.BxhTransaction tx = 1;
+  abi.BxhTransaction tx = 1;
   bool valid = 2;
 }
 

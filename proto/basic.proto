@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package pb;
+package abi;
 
 message Uint64Slice {
   repeated uint64 slice = 1;
